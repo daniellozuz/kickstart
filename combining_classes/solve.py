@@ -1,3 +1,6 @@
+from time import sleep
+
+
 class Problem(object):
     def __init__(self, number, N, Q, Ls, Rs, Ks):
         self.number = number
@@ -8,21 +11,58 @@ class Problem(object):
         self.Ks = Ks
         self.solution = 0
 
-    def solve(self):
+    def show(self):
         print(f'Number: {self.number}')
         print(f'N: {self.N} Q: {self.Q}')
         print(f'Ls: {self.Ls}')
         print(f'Rs: {self.Rs}')
         print(f'Ks: {self.Ks}')
-        scores = []
-        for L, R in zip(self.Ls, self.Rs):
-            scores.extend([score for score in range(L, R + 1)])
-        sorted_scores = sorted(scores, reverse=True)
+
+    def solve(self):
+        saved_Rs = self.Rs.copy()
+        saved_Ls = self.Ls.copy()
+        self.show()
         for i, K in enumerate(self.Ks):
+            removed = 0
+            self.Rs = saved_Rs.copy()
+            self.Ls = saved_Ls.copy()
+            while removed < K and self.Rs:
+                m = max(self.Rs)
+                print(m)
+                max_indeces = [i for i, j in enumerate(self.Rs) if j == m]
+                try:
+                    second_m = max([R for i, R in enumerate(self.Rs) if i not in max_indeces])
+                except ValueError:
+                    second_m = 0
+                print(second_m)
+                second_max_indeces = [i for i, j in enumerate(self.Rs) if j == second_m]
+                print(max_indeces)
+                max_lowest = max([self.Ls[i] for i in max_indeces])
+                print(max_lowest)
+                max_lowest_indeces = [i for i in max_indeces if self.Ls[i] == max_lowest]
+                # print(Ls[max_lowest_indeces])
+                bottom = max(max_lowest, second_m)
+                diff = m - bottom
+                if len(max_indeces) * diff >= K - removed:
+                    diff = 1
+                print('Diff:', diff)
+                indeces_to_decrease = max_indeces
+                for i in indeces_to_decrease:
+                    self.Rs[i] -= diff
+                    removed += diff
+                for i in reversed(range(len(self.Rs))):
+                    if self.Rs[i] == self.Ls[i]:
+                        self.Rs.pop(i)
+                        self.Ls.pop(i)
+                        removed += 1
+                print('Removed', removed)
+                self.show()       
             try:
-                self.solution += sorted_scores[K - 1] * (i + 1)
-            except IndexError:
-                pass
+                self.solution += max(self.Rs) * (i + 1)
+            except ValueError:
+                self.solution += 0
+            print('Partial solution', self.solution)
+            # sleep(5)
         return self.solution
 
 
