@@ -1,3 +1,4 @@
+from copy import deepcopy
 from time import sleep
 
 
@@ -11,27 +12,43 @@ class Raven(object):
 
 
 class Position(object):
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+    def __init__(self, r, c):
+        self.r = r
+        self.c = c
     
+    def __eq__(self, other):
+        return self.r == other.r and self.c == other.c
+
+    def __hash__(self):
+        return hash((self.r, self.c))
+
     def __repr__(self):
-        return f'({self.x}, {self.y})'
+        return f'({self.r}, {self.c})'
 
 
 class Maze(object):
     def __init__(self, maze):
         self.maze = maze
+        self.traps = self.get_traps()
 
     def __getitem__(self, position):
-        return self.maze[position.x-1][position.y-1]
+        return self.maze[position.r-1][position.c-1]
     
-    def get_copy(self):
-        return self.maze.deepcopy()
+    def __setitem__(self, position, value):
+        self.maze[position.r-1][position.c-1] = value
+
+    def get_traps(self):
+        traps = []
+        for row in range(len(self.maze)):
+            for col in range(len(self.maze[0])):
+                if -10**5 < self.maze[row][col] < 0:
+                    traps.append(Position(row + 1, col + 1))
+        return traps
 
 
 class Problem(object):
-    solution = 0
+    solution = -1
+    VISITED = -10**6
     
     def __init__(self, number, N, M, E, maze, Sr, Sc, Tr, Tc):
         self.number = number
@@ -43,22 +60,64 @@ class Problem(object):
         self.target = Position(Tr, Tc)
         self.raven = Raven(E, self.starting_position)
 
-    def show(self):
+    def show(self, maze=None):
         print(f'Number: {self.number}')
         print(f'Rows: {self.rows} Columns: {self.columns}')
         print(f'Start: {self.starting_position}')
         print(f'Target: {self.target}')
         print(f'Raven: {self.raven}')
+        if maze:
+            print(f'{maze.maze}')
 
     def solve(self):
-        self.show()
-        # self.flood()
-        for trap in self.get_proximate_traps():
-            maze = self.maze.get_copy()
+        if self.raven.energy < 0:
+            return -1
+        # self.show(self.maze)
+        # print('Target',self.maze[self.target])
+        self.visit_neutral(self.raven.position)
+        # self.show(self.maze)
+        if self.is_exit_reachable():
+            return self.raven.energy
+        # print('Reachable traps', self.get_reachable_traps())
+        for trap in self.get_reachable_traps():
+            problem = deepcopy(self)
+            problem.visit_trap(trap)
+            solution = problem.solve()
+            if solution > self.solution:
+                self.solution = solution
         return self.solution
 
-    def get_proximate_traps(self):
-        return []
+    def is_exit_reachable(self):
+        return self.maze[self.target] == Problem.VISITED 
+
+    def visit_trap(self, position):
+        self.raven.energy += self.maze[position]
+        self.maze[position] = Problem.VISITED
+        self.raven.position = position
+        self.maze.traps.remove(position)
+
+    def visit_neutral(self, position):
+        if self.maze[position] > 0:
+            self.raven.energy += self.maze[position]
+        self.maze[position] = Problem.VISITED
+        for next_position in self.get_neutral_moves(position):
+            self.visit_neutral(next_position)
+
+    def get_neutral_moves(self, position):
+        return [p for p in self.get_moves(position) if self.maze[p] >= 0]
+
+    def get_moves(self, position):
+        directions = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+        moves = [Position(position.r + dr, position.c + dc) for dr, dc in directions]
+        return [move for move in moves if 0 < move.r <= self.rows and 0 < move.c <= self.columns]
+
+    def get_reachable_traps(self):
+        traps = []
+        for trap in self.maze.traps:
+            for position in self.get_moves(trap):
+                if self.maze[position] == Problem.VISITED:
+                    traps.append(trap)
+        return list(set(traps))
 
 
 class Loader(object):
@@ -89,7 +148,7 @@ class Saver(object):
 
 
 if __name__ == '__main__':
-    FILENAME = 'A-small-practice'
+    FILENAME = 'C-small-practice'
     loader = Loader(f'{FILENAME}.in')
     saver = Saver(f'{FILENAME}.out')
     for problem in loader.get_problems():
