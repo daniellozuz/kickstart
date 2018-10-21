@@ -59,6 +59,7 @@ class Problem(object):
         self.starting_position = Position(Sr, Sc)
         self.target = Position(Tr, Tc)
         self.raven = Raven(E, self.starting_position)
+        self.show()
 
     def show(self, maze=None):
         print(f'Number: {self.number}')
@@ -92,16 +93,22 @@ class Problem(object):
 
     def visit_trap(self, position):
         self.raven.energy += self.maze[position]
-        self.maze[position] = Problem.VISITED
+        self.visit(position)
         self.raven.position = position
         self.maze.traps.remove(position)
 
     def visit_neutral(self, position):
-        if self.maze[position] > 0:
-            self.raven.energy += self.maze[position]
-        self.maze[position] = Problem.VISITED
+        self.drink_potion(position)
+        self.visit(position)
         for next_position in self.get_neutral_moves(position):
             self.visit_neutral(next_position)
+
+    def drink_potion(self, position):
+        if self.maze[position] > 0:
+            self.raven.energy += self.maze[position]
+
+    def visit(self, position):
+        self.maze[position] = Problem.VISITED
 
     def get_neutral_moves(self, position):
         return [p for p in self.get_moves(position) if self.maze[p] >= 0]
@@ -148,7 +155,7 @@ class Saver(object):
 
 
 if __name__ == '__main__':
-    FILENAME = 'C-small-practice'
+    FILENAME = 'C-large-practice'
     loader = Loader(f'{FILENAME}.in')
     saver = Saver(f'{FILENAME}.out')
     for problem in loader.get_problems():
